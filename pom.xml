@@ -20,6 +20,13 @@
         <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>ProgbitsRepo</id>
+            <url>https://archiva.progbits.com/coffer/repository/internal/</url>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
             <id>progbits</id>
@@ -78,10 +85,12 @@
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
+                        <phase>package</phase>
                         <goals>
                             <goal>jar</goal>
                         </goals>
                     </execution>
+
                 </executions>
             </plugin>
             <plugin>
@@ -91,6 +100,7 @@
                 <executions>
                     <execution>
                         <id>attach-sources</id>
+                        <phase>package</phase>
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
