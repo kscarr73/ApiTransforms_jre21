@@ -2,6 +2,7 @@ package com.icg.api.json;
 
 import com.progbits.api.exception.ApiException;
 import com.progbits.api.json.UTF8JsonParser;
+import static com.progbits.api.json.UTF8JsonParser.Event.START_ARRAY;
 import org.testng.annotations.Test;
 
 /**
@@ -18,7 +19,11 @@ public class TestJson {
                             "IValue": 2134,
                             "FValue": 123.31,
                             "MyIntArray": [ 2134, 1234, 1234, 51313 ],
-                            "MyStrArray": [ "This", "That", "Other" ]
+                            "MyStrArray": [ "This", "That", "Other" ],
+                            "AnotherObject": {
+                                "TestVar1": "OtherVal",
+                                "TestVar2": "ThisVal"
+                            }
                          }
                          """;
     @Test()
@@ -34,23 +39,39 @@ public class TestJson {
                 switch (currEvent) {
                     case KEY_NAME -> {
                         keyName = json.getString();
-                        
+                        System.out.println("Key Name: " + keyName);
+                    }
+                    
+                    case START_ARRAY -> {
+                        System.out.println("In Array");
+                    }
+                    
+                    case START_OBJECT -> {
+                        System.out.println("In Array");
                     }
 
+                    case END_ARRAY -> {
+                        System.out.println("End Array");
+                    }
+                    
+                    case END_OBJECT -> {
+                        System.out.println("End Object");
+                    }
+                    
                     case VALUE_STRING -> {
-                        // Nothing to do
+                        System.out.println(keyName + ":" + json.getString());
                     }
 
                     case VALUE_TRUE -> {
-                        // Nothing to do
+                        System.out.println(keyName + ": true");
                     }
 
                     case VALUE_NUMBER_INT -> {
-                        // Nothing to do
+                        System.out.println(keyName + ": " + json.getInt());
                     }
 
                     case VALUE_NUMBER_FLOAT -> {
-                        // Nothing to do
+                        System.out.println(keyName + ": " + json.getDouble());
                     }
 
                     default -> {
@@ -60,41 +81,6 @@ public class TestJson {
             }
         } catch (ApiException ex) {
 
-        }
-    }
-    
-    @Test
-    public void run100() {
-        for (var x = 0; x<100;x++) {
-            testJson();
-        }
-    }
-    
-    @Test
-    public void run1000() {
-        for (var x = 0; x<1000;x++) {
-            testJson();
-        }
-    }
-    
-    @Test
-    public void run10000() {
-        for (var x = 0; x<10000;x++) {
-            testJson();
-        }
-    }
-    
-    @Test()
-    public void run100000() {
-        for (var x = 0; x<100000;x++) {
-            testJson();
-        }
-    }
-    
-    @Test()
-    public void run1000000() {
-        for (var x = 0; x<100000;x++) {
-            testJson();
         }
     }
 }

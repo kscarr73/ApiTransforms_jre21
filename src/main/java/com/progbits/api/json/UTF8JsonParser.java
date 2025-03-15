@@ -7,7 +7,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Simple JSON Streaming Parser
@@ -19,7 +20,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
     /**
      * The Token Event
      */
-    public enum Event {
+    public static enum Event {
         /**
          * Start of a JSON array. The position of the parser is after '['.
          */
@@ -82,27 +83,30 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
     private final StringBuilder _textBuffer = new StringBuilder();
     private String _currentName;
     private Event _currentEvent;
-    private final ConcurrentLinkedDeque<Integer> currState = new ConcurrentLinkedDeque<>();
+    private final byte[] currStateLst = new byte[256];
+    private int currStateCnt = 0;
+    
+    private byte currState = -1;
+    
     private char iRead;
     private boolean usePrev = false;
-    private int iCurrState = 0;
 
-    final char STRUCT_BEGIN_ARRAY = '['; // [
-    final char STRUCT_END_ARRAY = ']'; // ]
-    final char STRUCT_BEGIN_OBJECT = '{'; // {
-    final char STRUCT_END_OBJECT = '}'; // }
-    final char STRUCT_COLON = ':'; // :
-    final char STRUCT_COMMA = ','; // ,
+    final static char STRUCT_BEGIN_ARRAY = '['; // [
+    final static char STRUCT_END_ARRAY = ']'; // ]
+    final static char STRUCT_BEGIN_OBJECT = '{'; // {
+    final static char STRUCT_END_OBJECT = '}'; // }
+    final static char STRUCT_COLON = ':'; // :
+    final static char STRUCT_COMMA = ','; // ,
 
-    final int STRUCT_QUOTES = '"'; // "
+    final static int STRUCT_QUOTES = '"'; // "
 
-    final char INT_SPACE = ' ';
-    final char INT_TAB = '\t';
-    final char INT_SLASH = '/';
-    final char INT_BACKSLASH = '\\';
-    final char INT_NEWLINE = '\n';
-    final char INT_LINEFEED = '\f';
-    final char INT_CARRIAGERETURN = '\r';
+    final static char INT_SPACE = ' ';
+    final static char INT_TAB = '\t';
+    final static char INT_SLASH = '/';
+    final static char INT_BACKSLASH = '\\';
+    final static char INT_NEWLINE = '\n';
+    final static char INT_LINEFEED = '\f';
+    final static char INT_CARRIAGERETURN = '\r';
 
     int iCurrPtr = 0;
     int iEnd = 0;
@@ -226,13 +230,13 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
                 break;
             }
 
-            event = isStruct(iRead);
+            event = isStruct();
 
             if (event != null) {
                 break;
             }
 
-            if (_currentName == null) {
+            if (_currentName == null && currState != 2) {
                 if (iRead == STRUCT_QUOTES) {
                     readToEndQuote();
                     _currentName = getString();
@@ -249,8 +253,10 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
             }
 
             // If we are in a new Array, look for Scalar values
-            if (currState.peekFirst() == 2) {
+            if (currState == 2) {
                 // Outside specific codes
+                usePrev = true;
+                
                 event = readValue();
                 if (event != null) {
                     break;
@@ -315,38 +321,41 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
 
             int iType = 0;
 
-            while (true) {
-                iRead = getNextChar();
+            boolean bContinue = true;
+            
+            while (bContinue) {
+                if (usePrev) {
+                    usePrev = false;
+                } else {
+                    iRead = getNextChar();
+                }
 
                 if (iRead == STRUCT_QUOTES) {
                     iType = 1;
                     _textBuffer.setLength(0);
                     readToEndQuote();
+                    
+                    bContinue = readToControlChar(false);
                 } else if (((iRead >= 48 && iRead <= 57) || iRead == 45 || iRead == 46 || iRead == 101) && (iType == 0 || iType == 2)) {
+                    // Number Parsing
                     iType = 2;
-                    _textBuffer.append(iRead);
+                    bContinue = readToControlChar(true);
                 } else if ((iRead == 110 || iRead == 117 || iRead == 108) && (iType == 0 || iType == 3)) {
+                    // Null Value
                     iType = 3;
+                    bContinue = readToControlChar(false);
                 } else if ((iRead == 116 || iRead == 102) && (iType == 0 || iType == 4 || iType == 5)) {
+                    // true/false parsing
                     if (iRead == 116) {
                         iType = 4;
                     } else {
                         iType = 5;
                     }
-                } else if (iRead == STRUCT_BEGIN_ARRAY) {
+                    
+                    bContinue = readToControlChar(false);
+                } else if (iRead == STRUCT_BEGIN_ARRAY || iRead == STRUCT_BEGIN_OBJECT ) {
                     usePrev = true;
-                    break;
-                } else if (iRead == STRUCT_BEGIN_OBJECT) {
-                    usePrev = true;
-                    break;
-                } else if (iRead == STRUCT_END_OBJECT) {
-                    usePrev = true;
-                    break;
-                } else if (iRead == STRUCT_END_ARRAY) {
-                    usePrev = true;
-                    break;
-                } else if (iRead == STRUCT_COMMA) {
-                    break;
+                    bContinue = false;
                 }
             }
 
@@ -374,22 +383,76 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
         return event;
     }
 
-    private Event isStruct(int iRead) {
+    private boolean readToControlChar(boolean useTextBuffer) throws ApiException {
+        boolean bRet = true;
+        
+        if (useTextBuffer) _textBuffer.append(iRead);
+        
+        while (bRet) {
+            iRead = getNextChar();
+            
+            switch (iRead) {
+                case STRUCT_BEGIN_ARRAY, STRUCT_BEGIN_OBJECT, 
+                    STRUCT_END_OBJECT, STRUCT_END_ARRAY  -> {
+                    usePrev = true;
+                    bRet = false;
+                }
+                    
+                case STRUCT_COMMA -> {
+                    bRet = false;
+                }
+                    
+                default -> {
+                    if (useTextBuffer) _textBuffer.append(iRead);
+                }
+            }
+        }
+        
+        return bRet;
+    }
+    
+    private Event isStruct() throws ApiException {
         switch (iRead) {
             case STRUCT_BEGIN_ARRAY -> {
-                currState.addFirst(2);
+                currStateCnt++;
+                currStateLst[currStateCnt] = 2;
+                currState = 2;
                 return Event.START_ARRAY;
             }
             case STRUCT_BEGIN_OBJECT -> {
-                currState.addFirst(1);
+                currStateCnt++;
+                currStateLst[currStateCnt] = 1;
+                currState = 1;
                 return Event.START_OBJECT;
             }
             case STRUCT_END_OBJECT -> {
-                currState.removeFirst();
+                if (currState == 1) {
+                    currStateCnt--;
+                    
+                    if (currStateCnt > -1) {
+                        currState = currStateLst[currStateCnt];
+                    } else {
+                        currState = -1;
+                    }
+                } else {
+                    throw new ApiException(520, "State Incorrect");
+                }
+                
                 return Event.END_OBJECT;
             }
             case STRUCT_END_ARRAY -> {
-                currState.removeFirst();
+                if (currState == 2) {
+                    currStateCnt--;
+                    
+                    if (currStateCnt > -1) {
+                        currState = currStateLst[currStateCnt];
+                    } else {
+                        currState = -1;
+                    }
+                } else {
+                    throw new ApiException(520, "State Incorrect");
+                }
+                
                 return Event.END_ARRAY;
             }
             default -> {
@@ -413,7 +476,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
      * @return Integer Representation of the Buffer
      */
     public Integer getInt() {
-        return Integer.valueOf(_textBuffer.toString());
+        return Integer.valueOf(_textBuffer.toString().trim());
     }
 
     /**
@@ -422,7 +485,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
      * @return Long Representation of the Buffer
      */
     public Long getLong() {
-        return Long.valueOf(_textBuffer.toString());
+        return Long.valueOf(_textBuffer.toString().trim());
     }
 
     /**
@@ -431,7 +494,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
      * @return Float Representation of the Buffer
      */
     public Float getFloat() {
-        return Float.valueOf(_textBuffer.toString());
+        return Float.valueOf(_textBuffer.toString().trim());
     }
 
     /**
@@ -440,6 +503,6 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
      * @return Double Representation of the Buffer
      */
     public Double getDouble() {
-        return Double.valueOf(_textBuffer.toString());
+        return Double.valueOf(_textBuffer.toString().trim());
     }
 }

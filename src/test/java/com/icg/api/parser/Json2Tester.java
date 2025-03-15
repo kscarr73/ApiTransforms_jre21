@@ -46,7 +46,7 @@ public class Json2Tester {
             
             assert json != null;
         } catch (ApiException | ApiClassNotFoundException apiEx) {
-            // Nothing to report
+            System.out.println(apiEx.getMessage());
         }
     }
     
