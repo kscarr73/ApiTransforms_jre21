@@ -43,7 +43,7 @@ public class YamlObjectParser implements ObjectParser {
     private String _mainClass;
     private ApiClasses _classes;
     private Iterable<Event> _parser;
-    
+
     private Yaml factory;
     private Resolver resolver;
     private Map<String, String> _props;
@@ -68,20 +68,21 @@ public class YamlObjectParser implements ObjectParser {
         loaderOptions.setAllowDuplicateKeys(false);
         loaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE);
         loaderOptions.setAllowRecursiveKeys(true);
-        
+
         createYaml(loaderOptions);
     }
-    
+
     private void createYaml(LoaderOptions loaderOptions) {
         SafeConstructor constructor = new SafeConstructor(loaderOptions);
         DumperOptions dumperOptions = new DumperOptions();
         Representer representer = new Representer(dumperOptions);
         this.resolver = new Resolver();
-        
+
         factory = new Yaml(constructor, representer, dumperOptions, resolver);
     }
+
     private void internalInit(ApiClasses classes, String mainClass,
-            Map<String, String> properties, Reader in) {
+        Map<String, String> properties, Reader in) {
         if (in != null) {
             _parser = factory.parse(in);
         }
@@ -98,13 +99,13 @@ public class YamlObjectParser implements ObjectParser {
 
     @Override
     public void initStream(ApiClasses classes, String mainClass,
-            Map<String, String> properties, InputStream in) throws ApiException {
+        Map<String, String> properties, InputStream in) throws ApiException {
         init(classes, mainClass, properties, new BufferedReader(new InputStreamReader(in)));
     }
 
     @Override
     public void init(ApiClasses classes, String mainClass,
-            Map<String, String> properties, Reader in) throws ApiException {
+        Map<String, String> properties, Reader in) throws ApiException {
         internalInit(classes, mainClass, properties, in);
     }
 
@@ -137,7 +138,7 @@ public class YamlObjectParser implements ObjectParser {
     }
 
     public void parseYamltoObject(ApiClasses apiClasses, String curClass,
-            Iterable<Event> parser, ApiObject obj, boolean bFirst) throws ApiException, ApiClassNotFoundException {
+        Iterable<Event> parser, ApiObject obj, boolean bFirst) throws ApiException, ApiClassNotFoundException {
         boolean iFirstObj = bFirst;
 
         ApiClass apiClass = null;
@@ -151,7 +152,7 @@ public class YamlObjectParser implements ObjectParser {
                 }
             } else {
                 throw new ApiException(
-                        "Field Name is Null. Main Class: " + _mainClass, null);
+                    "Field Name is Null. Main Class: " + _mainClass, null);
             }
         }
 
@@ -178,7 +179,7 @@ public class YamlObjectParser implements ObjectParser {
                             if (curField != null) {
                                 if (curField.getString("subType") != null) {
                                     nObj = apiClasses.getInstance(curField.
-                                            getString("subType"));
+                                        getString("subType"));
                                 } else {
                                     try {
                                         nObj = apiClasses.getInstanceByName(key);
@@ -201,7 +202,7 @@ public class YamlObjectParser implements ObjectParser {
                         }
 
                         parseYamltoObject(apiClasses, nObj.getName(), parser, nObj,
-                                false);
+                            false);
 
                         if (inArray) {
                             if (obj.getList(key) == null) {
@@ -269,22 +270,22 @@ public class YamlObjectParser implements ObjectParser {
                         obj.createStringArray(key);
                     }
 
-                    obj.getStringArray(key).add(subject);
+                    obj.getStringArray(key).add(subject.replace("&#39;", "'"));
                 } else {
-                    obj.setString(key, subject);
+                    obj.setString(key, subject.replace("&#39;", "'"));
                 }
                 break;
 
             case "tag:yaml.org,2002:timestamp":
                 if (curField != null) {
                     if ("Date".equals(curField.getString("type"))
-                            || "DateTime".equals(curField.getString("type"))) {
+                        || "DateTime".equals(curField.getString("type"))) {
                         if (!_dtFormats.containsKey(key)) {
                             String format = curField.getString("format");
 
                             if (format != null && !format.isEmpty()) {
                                 DateTimeFormatter dtFormat = DateTimeFormatter.
-                                        ofPattern(format);
+                                    ofPattern(format);
 
                                 _dtFormats.put(key, dtFormat);
                             } else {
