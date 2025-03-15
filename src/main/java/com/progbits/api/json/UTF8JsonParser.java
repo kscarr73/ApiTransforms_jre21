@@ -16,6 +16,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  */
 public class UTF8JsonParser implements Closeable, AutoCloseable {
 
+    /**
+     * The Token Event
+     */
     public enum Event {
         /**
          * Start of a JSON array. The position of the parser is after '['.
@@ -41,7 +44,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
          * Number value in a JSON array or object. The position of the parser is
          * after the number value. {@code JsonParser} provides the following
          * methods to access the number value: {@link #getInt},
-         * {@link #getLong}, and {@link #getBigDecimal}.
+         * {@link #getLong}
          */
         VALUE_NUMBER_INT,
         VALUE_NUMBER_FLOAT,
@@ -68,6 +71,10 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
          * End of a JSON array. The position of the parser is after ']'.
          */
         END_ARRAY,
+        
+        /**
+         * End of File found
+         */
         EOF
     }
 
@@ -101,28 +108,53 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
     int iEnd = 0;
     char[] charBuff = new char[4000];
 
+    /**
+     * Create a JsonParser using String
+     * 
+     * @param subject The String to Parse
+     */
     public UTF8JsonParser(String subject) {
         _reader = new StringReader(subject);
     }
 
+    /**
+     * Create a JsonParser using a Reader
+     * 
+     * @param reader The Reader To Parse
+     */
     public UTF8JsonParser(Reader reader) {
         _reader = reader;
     }
 
+    /**
+     * Create a JsonParser using InputStream
+     * 
+     * @param is The InputStream to Parse
+     */
     public UTF8JsonParser(InputStream is) {
         _reader = new InputStreamReader(is);
     }
 
+    /**
+     * Close the Parser
+     * 
+     * @throws IOException 
+     */
     @Override
     public void close() throws IOException {
         _reader = null;
     }
 
+    /**
+     * Get the Current Token Event
+     * 
+     * @return The Current Token Event
+     */
     public Event currentEvent() {
         return _currentEvent;
     }
 
-    protected char getNextChar() throws ApiException {
+    private char getNextChar() throws ApiException {
         if (iCurrPtr >= iEnd) {
             loadMore();
         }
@@ -130,7 +162,7 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
         return charBuff[iCurrPtr++];
     }
 
-    protected char getNextCharIgnoreWhitespace() throws ApiException {
+    private char getNextCharIgnoreWhitespace() throws ApiException {
         char respChar = 0;
         boolean bContinue = true;
         
@@ -145,7 +177,8 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
         
         return respChar;
     }
-    protected boolean loadMore() throws ApiException {
+    
+    private boolean loadMore() throws ApiException {
         try {
             if (_reader != null) {
                 int count = _reader.read(charBuff, 0, charBuff.length);
@@ -168,6 +201,13 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
         return false;
     }
 
+    /**
+     * Get the next Token Event
+     * 
+     * @return The Token Event for the new Current Token
+     * 
+     * @throws ApiException The function ran into an exception
+     */
     public Event nextToken() throws ApiException {
         Event event = null;
 
@@ -358,22 +398,47 @@ public class UTF8JsonParser implements Closeable, AutoCloseable {
         }
     }
 
+    /**
+     * Get Current Token Buffer as String
+     * 
+     * @return String Representation of the Buffer
+     */
     public String getString() {
         return _textBuffer.toString();
     }
 
+    /**
+     * Get Current Token Buffer as Integer
+     * 
+     * @return Integer Representation of the Buffer
+     */
     public Integer getInt() {
         return Integer.valueOf(_textBuffer.toString());
     }
 
+    /**
+     * Get Current Token Buffer as Long
+     * 
+     * @return Long Representation of the Buffer
+     */
     public Long getLong() {
         return Long.valueOf(_textBuffer.toString());
     }
 
+    /**
+     * Get Current Token Buffer as Float
+     * 
+     * @return Float Representation of the Buffer
+     */
     public Float getFloat() {
         return Float.valueOf(_textBuffer.toString());
     }
 
+    /**
+     * Get Current Token Buffer as Double
+     * 
+     * @return Double Representation of the Buffer
+     */
     public Double getDouble() {
         return Double.valueOf(_textBuffer.toString());
     }
