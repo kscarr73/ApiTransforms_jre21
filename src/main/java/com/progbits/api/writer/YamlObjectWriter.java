@@ -294,6 +294,7 @@ public class YamlObjectWriter implements ObjectWriter {
                 sb.append(" ");
             }
             
+            cs = sb;
             indentCache.put(indentSpacing, sb);
         }
         
